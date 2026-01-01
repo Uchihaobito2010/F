@@ -17,11 +17,11 @@ session.headers.update({
 DEVELOPER = "Paras Chourasiya"
 CHANNEL = "@obitoapi / @obitostuffs"
 
-# ================= TELEGRAM CHECK =================
+# ================= TELEGRAM CHECK (ULTRA STRICT) =================
 def telegram_taken(username: str) -> bool:
     """
-    True ONLY if a real Telegram profile/channel exists.
-    Prevents generic-page false positives.
+    True ONLY if Telegram profile/channel REALLY exists.
+    Uses og:title meta tag as final proof.
     """
     try:
         r = session.get(
@@ -30,27 +30,21 @@ def telegram_taken(username: str) -> bool:
             allow_redirects=True
         )
 
-        if r.status_code == 404:
-            return False
-
         if r.status_code != 200:
             return False
 
         html = r.text.lower()
         u = username.lower()
 
-        has_username = (
-            f"@{u}" in html or
-            f"t.me/{u}" in html
-        )
+        # must contain username reference
+        if f"@{u}" not in html and f"t.me/{u}" not in html:
+            return False
 
-        has_actions = any(x in html for x in [
-            "send message",
-            "join channel",
-            "view in telegram"
-        ])
+        # strong proof: og:title exists
+        if 'property="og:title"' in html:
+            return True
 
-        return has_username and has_actions
+        return False
 
     except:
         return False
@@ -97,7 +91,7 @@ def fragment_api_lookup(username: str, retries=2):
         status = values[2].get_text(strip=True)
         price = values[1].get_text(strip=True)
 
-        # 🚨 ONLY THESE ARE REAL FRAGMENT STATES
+        # ONLY valid Fragment states
         if status not in ["Available", "Sold"]:
             return None
 
@@ -134,7 +128,7 @@ async def check(user: str = Query(..., min_length=1)):
             "channel": CHANNEL
         }
 
-    # 🔴 TELEGRAM OWNED
+    # 🔴 TELEGRAM REAL PROFILE
     if tg_taken:
         return {
             "username": f"@{username}",
@@ -156,4 +150,4 @@ async def check(user: str = Query(..., min_length=1)):
         "message": "Can be claimed directly",
         "developer": DEVELOPER,
         "channel": CHANNEL
-    }
+                    }
