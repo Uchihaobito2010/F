@@ -17,13 +17,17 @@ session.headers.update({
 DEVELOPER = "Paras Chourasiya"
 CHANNEL = "@obitoapi / @obitostuffs"
 
-# ================= TELEGRAM CHECK (CLAIM ONLY) =================
+# ================= TELEGRAM CHECK =================
 def telegram_taken(username: str) -> bool:
     """
-    True only if a real Telegram profile/channel exists.
+    Returns True only if a REAL Telegram profile/channel exists.
     """
     try:
-        r = session.get(f"https://t.me/{username}", timeout=10, allow_redirects=True)
+        r = session.get(
+            f"https://t.me/{username}",
+            timeout=10,
+            allow_redirects=True
+        )
         if r.status_code != 200:
             return False
 
@@ -37,15 +41,13 @@ def telegram_taken(username: str) -> bool:
     except:
         return False
 
-
-# ================= FRAGMENT API (ONLY SOURCE OF TRUTH) =================
+# ================= FRAGMENT API CHECK =================
 def fragment_api_lookup(username: str, retries=2):
     """
-    Uses Fragment internal API.
-    Returns None if username is NOT on Fragment.
+    Uses Fragment INTERNAL API.
+    Returns dict only if username is LISTED or SOLD.
     """
     try:
-        # get API hash
         r = session.get("https://fragment.com", timeout=15)
         soup = BeautifulSoup(r.text, "html.parser")
 
@@ -60,28 +62,34 @@ def fragment_api_lookup(username: str, retries=2):
         if not api_url:
             return None
 
-        data = {
+        payload = {
             "type": "usernames",
             "query": username,
             "method": "searchAuctions"
         }
 
-        res = session.post(api_url, data=data, timeout=20).json()
+        res = session.post(api_url, data=payload, timeout=20).json()
         html = res.get("html")
-
         if not html:
             return None
 
         soup2 = BeautifulSoup(html, "html.parser")
-        vals = soup2.find_all("div", class_="tm-value")
+        values = soup2.find_all("div", class_="tm-value")
 
-        # Expect: username | price | status
-        if len(vals) < 3:
+        # Expected: username | price | status
+        if len(values) < 3:
             return None
 
+        status = values[2].get_text(strip=True)
+        price = values[1].get_text(strip=True)
+
+        # 🚨 VERY IMPORTANT FILTER
+        if status not in ["Available", "Sold"]:
+            return None   # Unavailable = NOT on Fragment
+
         return {
-            "status": vals[2].get_text(strip=True),
-            "price_ton": vals[1].get_text(strip=True)
+            "status": status,
+            "price_ton": price
         }
 
     except:
@@ -89,7 +97,6 @@ def fragment_api_lookup(username: str, retries=2):
             time.sleep(1)
             return fragment_api_lookup(username, retries - 1)
         return None
-
 
 # ================= MAIN ENDPOINT =================
 @app.get("/check")
@@ -99,13 +106,13 @@ async def check(user: str = Query(..., min_length=1)):
     fragment = fragment_api_lookup(username)
     tg_taken = telegram_taken(username)
 
-    # 🔵 FRAGMENT LISTED / SOLD (HIGHEST PRIORITY)
+    # 🔵 FRAGMENT LISTED / SOLD
     if fragment:
         return {
             "username": f"@{username}",
             "status": fragment["status"],
             "on_fragment": True,
-            "price_ton": fragment["price_ton"] or None,
+            "price_ton": fragment["price_ton"],
             "can_claim": False,
             "fragment_url": f"https://fragment.com/username/{username}",
             "developer": DEVELOPER,
@@ -134,4 +141,4 @@ async def check(user: str = Query(..., min_length=1)):
         "message": "Can be claimed directly",
         "developer": DEVELOPER,
         "channel": CHANNEL
-        }
+    }
