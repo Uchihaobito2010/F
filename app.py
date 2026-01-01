@@ -20,7 +20,8 @@ CHANNEL = "@obitoapi / @obitostuffs"
 # ================= TELEGRAM CHECK =================
 def telegram_taken(username: str) -> bool:
     """
-    Returns True only if a REAL Telegram profile/channel exists.
+    True ONLY if a real Telegram profile/channel exists.
+    Prevents generic-page false positives.
     """
     try:
         r = session.get(
@@ -28,18 +29,32 @@ def telegram_taken(username: str) -> bool:
             timeout=10,
             allow_redirects=True
         )
+
+        if r.status_code == 404:
+            return False
+
         if r.status_code != 200:
             return False
 
         html = r.text.lower()
         u = username.lower()
 
-        return (
-            (f"@{u}" in html or f"t.me/{u}" in html)
-            and any(x in html for x in ["send message", "join channel", "view in telegram"])
+        has_username = (
+            f"@{u}" in html or
+            f"t.me/{u}" in html
         )
+
+        has_actions = any(x in html for x in [
+            "send message",
+            "join channel",
+            "view in telegram"
+        ])
+
+        return has_username and has_actions
+
     except:
         return False
+
 
 # ================= FRAGMENT API CHECK =================
 def fragment_api_lookup(username: str, retries=2):
@@ -76,16 +91,15 @@ def fragment_api_lookup(username: str, retries=2):
         soup2 = BeautifulSoup(html, "html.parser")
         values = soup2.find_all("div", class_="tm-value")
 
-        # Expected: username | price | status
         if len(values) < 3:
             return None
 
         status = values[2].get_text(strip=True)
         price = values[1].get_text(strip=True)
 
-        # 🚨 VERY IMPORTANT FILTER
+        # 🚨 ONLY THESE ARE REAL FRAGMENT STATES
         if status not in ["Available", "Sold"]:
-            return None   # Unavailable = NOT on Fragment
+            return None
 
         return {
             "status": status,
@@ -97,6 +111,7 @@ def fragment_api_lookup(username: str, retries=2):
             time.sleep(1)
             return fragment_api_lookup(username, retries - 1)
         return None
+
 
 # ================= MAIN ENDPOINT =================
 @app.get("/check")
