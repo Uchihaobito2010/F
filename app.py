@@ -18,25 +18,49 @@ CONTACT = "t.me/Aotpy"
 PORTFOLIO = "https://aotpy.vercel.app"
 CHANNEL = "@obitoapi / @obitostuffs"
 
-# ================= FRAGMENT API URL =================
+# ================= INPUT VALIDATION =================
+def validate_username(username: str):
+    blocked = {
+        "telegram_username",
+        "username",
+        "example",
+        "test",
+        "yourname"
+    }
+
+    if not username:
+        raise HTTPException(status_code=400, detail="Username required")
+
+    username = username.lower().strip().replace("@", "")
+
+    if username in blocked:
+        raise HTTPException(status_code=400, detail="Invalid placeholder username")
+
+    if not re.fullmatch(r"[a-z0-9_]{5,32}", username):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid username format"
+        )
+
+    return username
+
+# ================= FRAGMENT API =================
 def get_fragment_api():
     try:
         r = session.get("https://fragment.com", timeout=10)
         soup = BeautifulSoup(r.text, "html.parser")
-        for script in soup.find_all("script"):
-            if script.string and "apiUrl" in script.string:
-                m = re.search(r"hash=([a-fA-F0-9]+)", script.string)
+        for s in soup.find_all("script"):
+            if s.string and "apiUrl" in s.string:
+                m = re.search(r"hash=([a-fA-F0-9]+)", s.string)
                 if m:
                     return f"https://fragment.com/api?hash={m.group(1)}"
         return None
     except:
         return None
 
-
-# ================= FRAGMENT CHECK =================
 def fragment_check(username: str, retries=2):
-    api_url = get_fragment_api()
-    if not api_url:
+    api = get_fragment_api()
+    if not api:
         return None
 
     payload = {
@@ -46,22 +70,20 @@ def fragment_check(username: str, retries=2):
     }
 
     try:
-        res = session.post(api_url, data=payload, timeout=10).json()
+        res = session.post(api, data=payload, timeout=10).json()
         html = res.get("html")
-
         if not html:
             return None
 
         soup = BeautifulSoup(html, "html.parser")
-        values = soup.find_all("div", class_="tm-value")
-
-        if len(values) < 3:
+        vals = soup.find_all("div", class_="tm-value")
+        if len(vals) < 3:
             return None
 
         return {
-            "username": values[0].get_text(strip=True),
-            "price_ton": values[1].get_text(strip=True),
-            "status": values[2].get_text(strip=True)
+            "username": vals[0].get_text(strip=True),
+            "price_ton": vals[1].get_text(strip=True),
+            "status": vals[2].get_text(strip=True)
         }
 
     except:
@@ -70,11 +92,23 @@ def fragment_check(username: str, retries=2):
             return fragment_check(username, retries - 1)
         return None
 
+# ================= ROOT =================
+@app.get("/")
+async def home():
+    return {
+        "api": "Fragment Username Checker",
+        "usage": "/check?username=tobi",
+        "note": "Telegram availability is not publicly reliable",
+        "developer": DEVELOPER,
+        "contact": CONTACT,
+        "portfolio": PORTFOLIO,
+        "channel": CHANNEL
+    }
 
 # ================= MAIN ENDPOINT =================
 @app.get("/check")
-async def check_username(username: str = Query(..., min_length=1)):
-    username = username.strip().lower().replace("@", "")
+async def check(username: str = Query(...)):
+    username = validate_username(username)
 
     data = fragment_check(username)
     if not data:
@@ -82,7 +116,7 @@ async def check_username(username: str = Query(..., min_length=1)):
 
     status = data["status"].lower()
 
-    # 🟢 NOT LISTED = FREE
+    # 🟢 NOT LISTED ON FRAGMENT
     if status == "unavailable":
         return {
             "username": f"@{username}",
@@ -90,21 +124,21 @@ async def check_username(username: str = Query(..., min_length=1)):
             "on_fragment": False,
             "price_ton": None,
             "can_claim": True,
-            "message": "Can be claimed directly",
+            "message": "Not listed on Fragment",
             "developer": DEVELOPER,
             "contact": CONTACT,
             "portfolio": PORTFOLIO,
             "channel": CHANNEL
         }
 
-    # 🔴 LISTED OR SOLD ON FRAGMENT
+    # 🔴 LISTED / SOLD
     return {
         "username": data["username"],
         "status": data["status"],
         "on_fragment": True,
         "price_ton": data["price_ton"],
         "can_claim": False,
-        "message": "Buy from Fragment" if data["status"] == "Available" else "Already sold",
+        "message": "Listed on Fragment",
         "developer": DEVELOPER,
         "contact": CONTACT,
         "portfolio": PORTFOLIO,
