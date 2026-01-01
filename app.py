@@ -1,97 +1,112 @@
 import re
+import time
 import requests
 from bs4 import BeautifulSoup
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 
-app = FastAPI(title="Username Claim Checker")
+app = FastAPI(title="Fragment Username Checker API")
 
-HEADERS = {
+# ================= CONFIG =================
+session = requests.Session()
+session.headers.update({
     "User-Agent": "Mozilla/5.0",
     "Referer": "https://fragment.com/"
-}
-
-session = requests.Session()
-session.headers.update(HEADERS)
+})
 
 DEVELOPER = "Paras Chourasiya"
+CONTACT = "t.me/Aotpy"
+PORTFOLIO = "https://aotpy.vercel.app"
 CHANNEL = "@obitoapi / @obitostuffs"
 
-# ================= FRAGMENT API ONLY =================
-def fragment_api_lookup(username: str):
+# ================= FRAGMENT API URL =================
+def get_fragment_api():
     try:
-        r = session.get("https://fragment.com", timeout=6)
+        r = session.get("https://fragment.com", timeout=10)
         soup = BeautifulSoup(r.text, "html.parser")
-
-        api_url = None
-        for s in soup.find_all("script"):
-            if s.string and "apiUrl" in s.string:
-                m = re.search(r"hash=([a-fA-F0-9]+)", s.string)
+        for script in soup.find_all("script"):
+            if script.string and "apiUrl" in script.string:
+                m = re.search(r"hash=([a-fA-F0-9]+)", script.string)
                 if m:
-                    api_url = f"https://fragment.com/api?hash={m.group(1)}"
-                    break
+                    return f"https://fragment.com/api?hash={m.group(1)}"
+        return None
+    except:
+        return None
 
-        if not api_url:
-            return None
 
-        payload = {
-            "type": "usernames",
-            "query": username,
-            "method": "searchAuctions"
-        }
+# ================= FRAGMENT CHECK =================
+def fragment_check(username: str, retries=2):
+    api_url = get_fragment_api()
+    if not api_url:
+        return None
 
-        res = session.post(api_url, data=payload, timeout=6).json()
+    payload = {
+        "type": "usernames",
+        "query": username,
+        "method": "searchAuctions"
+    }
+
+    try:
+        res = session.post(api_url, data=payload, timeout=10).json()
         html = res.get("html")
+
         if not html:
             return None
 
-        soup2 = BeautifulSoup(html, "html.parser")
-        vals = soup2.find_all("div", class_="tm-value")
-        if len(vals) < 3:
-            return None
+        soup = BeautifulSoup(html, "html.parser")
+        values = soup.find_all("div", class_="tm-value")
 
-        status = vals[2].get_text(strip=True)
-        price = vals[1].get_text(strip=True)
-
-        if status not in ["Available", "Sold"]:
+        if len(values) < 3:
             return None
 
         return {
-            "status": status,
-            "price_ton": price
+            "username": values[0].get_text(strip=True),
+            "price_ton": values[1].get_text(strip=True),
+            "status": values[2].get_text(strip=True)
         }
 
     except:
+        if retries > 0:
+            time.sleep(1)
+            return fragment_check(username, retries - 1)
         return None
 
 
 # ================= MAIN ENDPOINT =================
 @app.get("/check")
-async def check(user: str = Query(...)):
-    username = user.replace("@", "").lower().strip()
+async def check_username(username: str = Query(..., min_length=1)):
+    username = username.strip().lower().replace("@", "")
 
-    fragment = fragment_api_lookup(username)
+    data = fragment_check(username)
+    if not data:
+        raise HTTPException(status_code=500, detail="Fragment API error")
 
-    # 🔵 FRAGMENT LISTED / SOLD
-    if fragment:
+    status = data["status"].lower()
+
+    # 🟢 NOT LISTED = FREE
+    if status == "unavailable":
         return {
             "username": f"@{username}",
-            "status": fragment["status"],
-            "on_fragment": True,
-            "price_ton": fragment["price_ton"],
-            "can_claim": False,
-            "fragment_url": f"https://fragment.com/username/{username}",
+            "status": "Available",
+            "on_fragment": False,
+            "price_ton": None,
+            "can_claim": True,
+            "message": "Can be claimed directly",
             "developer": DEVELOPER,
+            "contact": CONTACT,
+            "portfolio": PORTFOLIO,
             "channel": CHANNEL
         }
 
-    # 🟢 DEFAULT: CLAIMABLE
+    # 🔴 LISTED OR SOLD ON FRAGMENT
     return {
-        "username": f"@{username}",
-        "status": "Available",
-        "on_fragment": False,
-        "price_ton": None,
-        "can_claim": True,
-        "message": "Telegram availability cannot be verified publicly",
+        "username": data["username"],
+        "status": data["status"],
+        "on_fragment": True,
+        "price_ton": data["price_ton"],
+        "can_claim": False,
+        "message": "Buy from Fragment" if data["status"] == "Available" else "Already sold",
         "developer": DEVELOPER,
+        "contact": CONTACT,
+        "portfolio": PORTFOLIO,
         "channel": CHANNEL
     }
