@@ -19,17 +19,16 @@ def get_session():
     s.headers.update({"User-Agent": generate_user_agent()})
     return s
 
-# ================= ROOT ( / ) =================
+# ================= ROOT =================
 @app.get("/")
 async def root():
     return {
-        "name": "Fragment Username Checker API",
-        "usage": "/check?user=username",
+        "api": "Fragment Username Checker",
+        "endpoint": "/check?user=username",
         "developer": DEVELOPER,
         "contact": CONTACT,
         "portfolio": PORTFOLIO,
-        "channel": CHANNEL,
-        "status": "running"
+        "channel": CHANNEL
     }
 
 # ================= FRAGMENT API =================
@@ -48,12 +47,12 @@ def frag_api():
     except:
         return None
 
-def check_fgusername(username: str, retries=2):
+def check_fgusername(username: str, retries=3):
     api_url = frag_api()
     if not api_url:
-        return {"error": "Fragment API not found"}
+        return {"error": f"Could not get API URL for @{username}"}
 
-    payload = {
+    data = {
         "type": "usernames",
         "query": username,
         "method": "searchAuctions"
@@ -61,53 +60,50 @@ def check_fgusername(username: str, retries=2):
 
     try:
         session = get_session()
-        res = session.post(api_url, data=payload, timeout=20).json()
-    except:
+        response = session.post(api_url, data=data, timeout=20).json()
+    except Exception:
         if retries > 0:
             time.sleep(2)
             return check_fgusername(username, retries - 1)
-        return {"error": "Fragment request failed"}
+        return {"error": "API request failed"}
 
-    html_data = res.get("html")
-    if not html_data:
-        return {
-            "username": f"@{username}",
-            "on_fragment": False,
-            "price": None,
-            "status": "Not Listed",
-            "can_claim": True
-        }
+    html_data = response.get("html")
+    if not html_data and retries > 0:
+        time.sleep(2)
+        return check_fgusername(username, retries - 1)
+    elif not html_data:
+        return {"error": "No HTML returned from Fragment API"}
 
     soup = BeautifulSoup(html_data, "html.parser")
-    values = soup.find_all("div", class_="tm-value")
+    elements = soup.find_all("div", class_="tm-value")
 
-    if len(values) < 3:
-        return {"error": "Invalid Fragment response"}
+    if len(elements) < 3:
+        return {"error": "Not enough info in response"}
 
-    tag = values[0].get_text(strip=True)
-    price = values[1].get_text(strip=True)
-    status = values[2].get_text(strip=True)
+    tag = elements[0].get_text(strip=True)
+    price = elements[1].get_text(strip=True)
+    status = elements[2].get_text(strip=True)
+
+    available = status.lower() == "unavailable"
+    message = "✅ This username might be free or not listed on Fragment" if available else ""
 
     return {
         "username": tag,
-        "on_fragment": True,
         "price": price,
         "status": status,
-        "can_claim": False
+        "available": available,
+        "message": message,
+        "developer": DEVELOPER,
+        "channel": CHANNEL
     }
 
 # ================= MAIN ENDPOINT =================
 @app.get("/check")
 async def check(user: str = Query(..., min_length=1)):
     user = user.replace("@", "").strip().lower()
-    result = check_fgusername(user)
 
+    result = check_fgusername(user)
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
-
-    result.update({
-        "developer": DEVELOPER,
-        "channel": CHANNEL
-    })
 
     return result
