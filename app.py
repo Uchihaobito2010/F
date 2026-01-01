@@ -1,10 +1,8 @@
-import re
-import time
-import requests
-from bs4 import BeautifulSoup
 from fastapi import FastAPI, Query
+import requests
+import re
 
-app = FastAPI()
+app = FastAPI(title="Telegram Fragment Username Check API")
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0",
@@ -17,46 +15,32 @@ CHANNEL = "@obitoapi / @obitostuffs"
 session = requests.Session()
 session.headers.update(HEADERS)
 
-# ---------------- TELEGRAM CHECK ----------------
+# ---------------- TELEGRAM CHECK (AUTHORITATIVE) ----------------
 def is_telegram_taken(username: str) -> bool:
     try:
         r = session.get(f"https://t.me/{username}", timeout=10)
-        return r.status_code == 200 and "tgme_page_title" in r.text.lower()
+        if r.status_code == 404:
+            return False
+        if r.status_code == 200:
+            html = r.text.lower()
+            return any(x in html for x in [
+                "tgme_page_title",
+                "view in telegram",
+                "send message",
+                "join channel",
+                "og:title"
+            ])
+        return False
     except:
         return False
 
-# ---------------- FRAGMENT API (PRICE) ----------------
-def fragment_api_price(username: str, retries=2):
-    try:
-        r = session.get("https://fragment.com", timeout=15)
-        soup = BeautifulSoup(r.text, "html.parser")
 
-        for script in soup.find_all("script"):
-            if script.string and "apiUrl" in script.string:
-                m = re.search(r"hash=([a-fA-F0-9]+)", script.string)
-                if m:
-                    api = f"https://fragment.com/api?hash={m.group(1)}"
-                    data = {
-                        "type": "usernames",
-                        "query": username,
-                        "method": "searchAuctions"
-                    }
-                    res = session.post(api, data=data, timeout=20).json()
-                    html = res.get("html")
-                    if not html:
-                        return None
-
-                    s = BeautifulSoup(html, "html.parser")
-                    vals = s.find_all("div", class_="tm-value")
-                    if len(vals) >= 2:
-                        return vals[1].get_text(strip=True)
-
-        return None
-    except:
-        return None
-
-# ---------------- FRAGMENT PAGE (STATUS) ----------------
-def fragment_page_status(username: str):
+# ---------------- FRAGMENT CHECK (STRICT) ----------------
+def fragment_lookup(username: str):
+    """
+    ONLY trust Fragment when SOLD is clearly stated.
+    Ignore 'Available' listings if Telegram is taken.
+    """
     url = f"https://fragment.com/username/{username}"
     try:
         r = session.get(url, timeout=15)
@@ -65,42 +49,47 @@ def fragment_page_status(username: str):
 
         html = r.text.lower()
 
-        if "this username was sold" in html:
-            return {"status": "Sold", "url": url}
+        # TRUST ONLY SOLD SIGNALS
+        if any(x in html for x in [
+            "this username was sold",
+            "sold for",
+            "final price"
+        ]):
+            return {
+                "status": "Sold",
+                "on_fragment": True,
+                "price_ton": "Unknown",
+                "fragment_url": url
+            }
 
-        if any(x in html for x in ["buy username", "place a bid"]):
-            return {"status": "Available", "url": url}
+        # AVAILABLE listing is WEAK → return but mark as listing
+        if any(x in html for x in [
+            "buy username",
+            "place a bid",
+            "fragment marketplace"
+        ]):
+            return {
+                "status": "Available",
+                "on_fragment": True,
+                "price_ton": "Unknown",
+                "fragment_url": url,
+                "listing_only": True
+            }
 
         return None
     except:
         return None
+
 
 # ---------------- MAIN ENDPOINT ----------------
 @app.get("/check")
 async def check(user: str = Query(...)):
     username = user.replace("@", "").lower().strip()
 
-    # 1️⃣ Fragment page (status priority)
-    fragment_status = fragment_page_status(username)
-
-    # 2️⃣ Fragment API (price best-effort)
-    price = fragment_api_price(username) if fragment_status else None
-
-    # 3️⃣ Telegram (claim logic)
     telegram_taken = is_telegram_taken(username)
+    fragment = fragment_lookup(username)
 
-    if fragment_status:
-        return {
-            "username": f"@{username}",
-            "status": fragment_status["status"],
-            "on_fragment": True,
-            "price_ton": price or "Unknown",
-            "can_claim": False,
-            "fragment_url": fragment_status["url"],
-            "developer": DEVELOPER,
-            "channel": CHANNEL
-        }
-
+    # 🔴 TELEGRAM TAKEN → AUTHORITATIVE
     if telegram_taken:
         return {
             "username": f"@{username}",
@@ -112,6 +101,20 @@ async def check(user: str = Query(...)):
             "channel": CHANNEL
         }
 
+    # 🟡 FRAGMENT SOLD / LISTED
+    if fragment:
+        return {
+            "username": f"@{username}",
+            "status": fragment["status"],
+            "on_fragment": True,
+            "price_ton": fragment.get("price_ton", "Unknown"),
+            "can_claim": False,
+            "fragment_url": fragment.get("fragment_url"),
+            "developer": DEVELOPER,
+            "channel": CHANNEL
+        }
+
+    # 🟢 FREE
     return {
         "username": f"@{username}",
         "status": "Available",
