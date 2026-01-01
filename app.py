@@ -70,7 +70,7 @@ def check_fgusername(username: str, retries=3):
         "username": tag,
         "price": price,
         "status": status,
-        "Can_Claim": available,
+        "Can Claim": available,
         "message": message,
         "developer": DEVELOPER,
         "channel": CHANNEL
@@ -88,4 +88,5 @@ async def check_username(username: str = Query(..., min_length=1)):
         raise HTTPException(status_code=500, detail=result["error"])
     return result
     
+
 
