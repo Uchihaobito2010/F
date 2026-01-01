@@ -1,29 +1,23 @@
-import re
-import time
+from fastapi import FastAPI, Query
 import requests
-from bs4 import BeautifulSoup
-from user_agent import generate_user_agent
-from fastapi import FastAPI, HTTPException, Query
+import re
 
-app = FastAPI()
+app = FastAPI(title="Telegram Fragment Username Check API")
 
-# ================= SESSION =================
-session = requests.Session()
-session.headers.update({"User-Agent": generate_user_agent()})
-
-# ================= CREDITS =================
-DEVELOPER = "Paras Chourasiya"
-CHANNEL = "@obitoapi / @obitostuffs"
-
+# ================= CONFIG =================
 HEADERS = {
-    "User-Agent": generate_user_agent(),
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "Accept-Language": "en-US,en;q=0.9",
     "Referer": "https://fragment.com/"
 }
+
+DEVELOPER = "Paras Chourasiya"
+CHANNEL = "@obitoapi / @obitostuffs"
 
 # ================= TELEGRAM CHECK =================
 def is_telegram_taken(username: str) -> bool:
     try:
-        r = session.get(
+        r = requests.get(
             f"https://t.me/{username}",
             headers=HEADERS,
             timeout=10,
@@ -42,113 +36,106 @@ def is_telegram_taken(username: str) -> bool:
                 "join channel",
                 "og:title"
             ]
-            if any(sig in html for sig in signals):
-                return True
+            return any(sig in html for sig in signals)
 
         return False
     except:
         return False
 
-# ================= FRAGMENT API =================
-def frag_api():
-    try:
-        r = session.get("https://fragment.com", timeout=15)
-        soup = BeautifulSoup(r.text, "html.parser")
-        for script in soup.find_all("script"):
-            if script.string and "apiurl" in script.string.lower():
-                match = re.search(r"hash=([a-fA-F0-9]+)", script.string)
-                if match:
-                    return f"https://fragment.com/api?hash={match.group(1)}"
-        return None
-    except:
-        return None
 
-def fragment_api_lookup(username: str, retries=3):
-    api_url = frag_api()
-    if not api_url:
-        return {"on_fragment": False}
-
-    data = {
-        "type": "usernames",
-        "query": username,
-        "method": "searchAuctions"
-    }
+# ================= FRAGMENT PAGE CHECK =================
+def fragment_lookup(username: str):
+    url = f"https://fragment.com/username/{username}"
 
     try:
-        res = session.post(api_url, data=data, timeout=20).json()
+        r = requests.get(url, headers=HEADERS, timeout=15)
+        if r.status_code != 200:
+            return {"on_fragment": False}
+
+        html = r.text.lower()
+
+        # ---- SOLD ----
+        if any(s in html for s in ["this username was sold", "sold for", "final price"]):
+            return {
+                "on_fragment": True,
+                "status": "Sold",
+                "price_ton": "Unknown",
+                "fragment_url": url
+            }
+
+        # ---- PRICE ----
+        price = None
+        m = re.search(r'([\d,]{2,})\s*ton', html)
+        if m:
+            price = m.group(1).replace(",", "")
+
+        # ---- LISTED ----
+        if any(s in html for s in ["buy username", "place a bid", "fragment marketplace"]):
+            return {
+                "on_fragment": True,
+                "status": "Available",
+                "price_ton": price or "Unknown",
+                "fragment_url": url
+            }
+
+        return {"on_fragment": False}
+
     except:
-        if retries > 0:
-            time.sleep(2)
-            return fragment_api_lookup(username, retries - 1)
         return {"on_fragment": False}
 
-    html_data = res.get("html")
-    if not html_data:
-        return {"on_fragment": False}
 
-    soup = BeautifulSoup(html_data, "html.parser")
-    values = soup.find_all("div", class_="tm-value")
-
-    if len(values) < 3:
-        return {"on_fragment": False}
-
-    tag = values[0].get_text(strip=True)
-    price_raw = values[1].get_text(strip=True)
-    status_raw = values[2].get_text(strip=True)
-
-    # normalize
-    status = status_raw.capitalize()
-    price = price_raw if price_raw else "Unknown"
-
+# ================= ROOT =================
+@app.get("/")
+async def home():
     return {
-        "on_fragment": True,
-        "username": tag,
-        "price_ton": price,
-        "status": status
+        "api": "Telegram Username Claim Check API",
+        "usage": "/check?user=username",
+        "developer": DEVELOPER,
+        "channel": CHANNEL,
+        "status": "online"
     }
+
 
 # ================= MAIN ENDPOINT =================
 @app.get("/check")
 async def check_username(user: str = Query(..., min_length=1)):
-    username = user.replace("@", "").lower().strip()
+    username = user.replace("@", "").strip().lower()
 
-    # 1️⃣ Telegram check
     telegram_taken = is_telegram_taken(username)
+    fragment = fragment_lookup(username)
 
-    # 2️⃣ Fragment API check
-    fragment = fragment_api_lookup(username)
-
-    # ---------- CASE A: Telegram already taken ----------
+    # 🔴 Telegram taken
     if telegram_taken:
         return {
             "username": f"@{username}",
             "status": "Taken (Telegram)",
-            "price_ton": fragment.get("price_ton", "Unknown"),
-            "on_fragment": fragment.get("on_fragment", False),
+            "on_fragment": True if fragment.get("on_fragment") else False,
+            "price_ton": fragment.get("price_ton", "Unknown") if fragment.get("on_fragment") else "Unknown",
             "can_claim": False,
             "developer": DEVELOPER,
             "channel": CHANNEL
         }
 
-    # ---------- CASE B: On Fragment ----------
+    # 🟡 Fragment listed / sold
     if fragment.get("on_fragment"):
         return {
-            "username": fragment.get("username", f"@{username}"),
+            "username": f"@{username}",
             "status": fragment.get("status"),
-            "price_ton": fragment.get("price_ton"),
             "on_fragment": True,
+            "price_ton": fragment.get("price_ton"),
             "can_claim": False,
-            "message": "Buy from Fragment",
+            "message": "Buy from Fragment" if fragment.get("status") == "Available" else "",
+            "fragment_url": fragment.get("fragment_url"),
             "developer": DEVELOPER,
             "channel": CHANNEL
         }
 
-    # ---------- CASE C: Free & Claimable ----------
+    # 🟢 Free & claimable
     return {
         "username": f"@{username}",
         "status": "Available",
-        "price_ton": "Unknown",
         "on_fragment": False,
+        "price_ton": "Unknown",
         "can_claim": True,
         "message": "Can be claimed directly",
         "developer": DEVELOPER,
