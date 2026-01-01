@@ -2,7 +2,7 @@ from fastapi import FastAPI, Query
 import requests
 import re
 
-app = FastAPI(title="Telegram Fragment Username Check API")
+app = FastAPI(title="Telegram Username Claim Check API")
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
@@ -22,6 +22,7 @@ def is_telegram_taken(username: str) -> bool:
             timeout=10,
             allow_redirects=True
         )
+
         if r.status_code == 404:
             return False
 
@@ -34,6 +35,7 @@ def is_telegram_taken(username: str) -> bool:
                 "join channel",
                 "og:title"
             ])
+
         return False
     except:
         return False
@@ -46,47 +48,32 @@ def fragment_lookup(username: str):
     try:
         r = requests.get(url, headers=HEADERS, timeout=15)
         if r.status_code != 200:
-            return {"confirmed": False}
+            return None
 
         html = r.text.lower()
 
-        # SOLD
         if any(x in html for x in ["this username was sold", "sold for", "final price"]):
             return {
-                "confirmed": True,
                 "status": "Sold",
                 "price_ton": "Unknown",
                 "url": url
             }
 
-        # AVAILABLE (LISTED)
         if any(x in html for x in ["buy username", "place a bid", "fragment marketplace"]):
             price = None
             m = re.search(r'([\d,]{2,})\s*ton', html)
             if m:
                 price = m.group(1).replace(",", "")
             return {
-                "confirmed": True,
                 "status": "Available",
                 "price_ton": price or "Unknown",
                 "url": url
             }
 
-        return {"confirmed": False}
+        return None
 
     except:
-        return {"confirmed": False}
-
-
-# ---------------- ROOT ----------------
-@app.get("/")
-async def root():
-    return {
-        "api": "Telegram Username Claim Check API",
-        "usage": "/check?user=username",
-        "developer": DEVELOPER,
-        "channel": CHANNEL
-    }
+        return None
 
 
 # ---------------- MAIN ENDPOINT ----------------
@@ -95,22 +82,23 @@ async def check(user: str = Query(...)):
     username = user.replace("@", "").lower().strip()
 
     telegram_taken = is_telegram_taken(username)
-    fragment = fragment_lookup(username)
 
-    # 🔴 TELEGRAM TAKEN
+    # 🔴 TELEGRAM TAKEN = HARD STOP
     if telegram_taken:
         return {
             "username": f"@{username}",
             "status": "Taken (Telegram)",
-            "on_fragment": True if fragment.get("confirmed") else False,
-            "price_ton": fragment.get("price_ton") if fragment.get("confirmed") else "Unknown",
+            "on_fragment": False,
+            "price_ton": "Unknown",
             "can_claim": False,
             "developer": DEVELOPER,
             "channel": CHANNEL
         }
 
-    # 🟡 FRAGMENT CONFIRMED
-    if fragment.get("confirmed"):
+    # 🟡 TELEGRAM FREE → CHECK FRAGMENT
+    fragment = fragment_lookup(username)
+
+    if fragment:
         return {
             "username": f"@{username}",
             "status": fragment.get("status"),
@@ -122,7 +110,7 @@ async def check(user: str = Query(...)):
             "channel": CHANNEL
         }
 
-    # 🟢 FREE
+    # 🟢 COMPLETELY FREE
     return {
         "username": f"@{username}",
         "status": "Available",
@@ -132,4 +120,4 @@ async def check(user: str = Query(...)):
         "message": "Can be claimed directly",
         "developer": DEVELOPER,
         "channel": CHANNEL
-        }
+               }
