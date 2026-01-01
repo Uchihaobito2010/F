@@ -12,7 +12,7 @@
 
     body {
       margin: 0;
-      height: 100vh;
+      min-height: 100vh;
       background: #0d1117;
       color: #e6edf3;
       font-family: Arial, sans-serif;
@@ -23,17 +23,52 @@
 
     .box {
       background: #161b22;
-      padding: 30px 35px;
-      border-radius: 12px;
-      max-width: 800px;
+      padding: 32px 36px;
+      border-radius: 14px;
+      max-width: 900px;
       width: 95%;
-      box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.75);
+    }
+
+    /* ===== TOP HEADER ===== */
+    .top-header {
+      text-align: center;
+      font-size: 30px;
+      letter-spacing: 4px;
+      font-weight: 900;
+      margin-bottom: 16px;
+      font-family: "Arial Black", Arial, sans-serif;
+      color: #ff4d4d;
+      text-shadow:
+        0 0 8px rgba(255, 77, 77, 0.6),
+        0 0 20px rgba(255, 0, 0, 0.5);
+      animation: obitoGlow 2.5s ease-in-out infinite;
+    }
+
+    @keyframes obitoGlow {
+      0% {
+        text-shadow:
+          0 0 6px rgba(255, 77, 77, 0.4),
+          0 0 14px rgba(255, 0, 0, 0.3);
+        transform: scale(1);
+      }
+      50% {
+        text-shadow:
+          0 0 14px rgba(255, 77, 77, 1),
+          0 0 32px rgba(255, 0, 0, 0.9);
+        transform: scale(1.06);
+      }
+      100% {
+        text-shadow:
+          0 0 6px rgba(255, 77, 77, 0.4),
+          0 0 14px rgba(255, 0, 0, 0.3);
+        transform: scale(1);
+      }
     }
 
     h1 {
       color: #58a6ff;
-      margin-top: 0;
-      margin-bottom: 10px;
+      margin: 0 0 12px;
     }
 
     p {
@@ -42,7 +77,7 @@
     }
 
     h3 {
-      margin-top: 25px;
+      margin-top: 24px;
       color: #79c0ff;
     }
 
@@ -52,13 +87,27 @@
       border-radius: 6px;
       color: #79c0ff;
       display: inline-block;
-      margin-top: 5px;
       font-size: 14px;
+    }
+
+    /* ===== JSON BOX ===== */
+    .json-box {
+      background: #0b1f14;
+      color: #3fb950;
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      max-height: 170px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      white-space: pre;
+      border: 1px solid #238636;
+      box-shadow: inset 0 0 12px rgba(63, 185, 80, 0.18);
     }
 
     .credit {
       margin-top: 30px;
-      padding-top: 15px;
+      padding-top: 16px;
       border-top: 1px solid #30363d;
       font-size: 14px;
       color: #8b949e;
@@ -73,50 +122,80 @@
     .tg:hover {
       color: #79c0ff;
     }
+
+    .copyright {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 13px;
+      color: #6e7681;
+    }
   </style>
 </head>
 <body>
 
   <div class="box">
+
+    <!-- TOP HEADER -->
+    <div class="top-header">OBITO API'S</div>
+
     <h1>🔍 Fragment Username Checker API</h1>
 
     <p>
-      A fast and simple API to check Telegram usernames and their status on Fragment.
+      A fast and simple API to check Telegram usernames, their availability,
+      and Fragment marketplace status.
     </p>
 
     <h3>📌 Endpoint</h3>
-    <code>/check?user=telegram_username</code>
+    <code>/check?username=telegram_username</code>
 
     <h3>✅ Example</h3>
     <code>https://api-tobi-frag.vercel.app/check?username=tobi</code>
 
-    <h3>📦 Response</h3>
-    <p>
-      Returns JSON containing username, price, status, and availability details.
-    </p>
+    <h3>📦 JSON Response Example</h3>
+    <pre class="json-box">{
+  "username": "@tobi",
+  "price": "5,050",
+  "status": "Available",
+  "Can Claim": false,
+  "message": "",
+  "developer": "Paras Chourasiya",
+  "channel": "@obitoapi / @obitostuffs"
+}</pre>
 
     <div class="credit">
       <p>
         👨‍💻 Developer :
-        <span class="tg" onclick="window.open('https://t.me/Aotpy', '_blank')">
-          User = @Aotpy
+        <span class="tg" onclick="window.open('https://t.me/Aotpy','_blank')">
+          @Aotpy
+        </span>
+      </p>
+
+      <p>
+        🌐 Portfolio :
+        <span class="tg" onclick="window.open('https://aotpy.vercel.app','_blank')">
+          Aotpy.vercel.app
         </span>
       </p>
 
       <p>
         📢 Channel :
-        <span class="tg" onclick="window.open('https://t.me/obitostuffs', '_blank')">
-          User = @obitostuffs
+        <span class="tg" onclick="window.open('https://t.me/obitostuffs','_blank')">
+          @obitostuffs
         </span>
       </p>
 
       <p>
         📢 API Channel :
-        <span class="tg" onclick="window.open('https://t.me/obitoapi', '_blank')">
-          User = @obitoapi
+        <span class="tg" onclick="window.open('https://t.me/obitoapi','_blank')">
+          @obitoapi
         </span>
       </p>
     </div>
+
+    <div class="copyright">
+      © 2026 Paras Chourasiya. All rights reserved.
+    </div>
+
   </div>
 
 </body>
