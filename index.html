@@ -25,7 +25,7 @@
       background: #161b22;
       padding: 32px 36px;
       border-radius: 14px;
-      max-width: 900px;
+      max-width: 950px;
       width: 95%;
       box-shadow: 0 0 40px rgba(0, 0, 0, 0.75);
     }
@@ -77,7 +77,7 @@
     }
 
     h3 {
-      margin-top: 24px;
+      margin-top: 26px;
       color: #79c0ff;
     }
 
@@ -90,23 +90,42 @@
       font-size: 14px;
     }
 
-    /* ===== JSON BOX ===== */
+    /* ===== JSON BOX BASE ===== */
     .json-box {
-      background: #0b1f14;
-      color: #3fb950;
       padding: 12px 14px;
       border-radius: 8px;
       font-size: 13px;
-      max-height: 170px;
+      max-height: 160px;
       overflow-x: auto;
       overflow-y: hidden;
       white-space: pre;
+      margin-top: 10px;
+      box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.3);
+    }
+
+    /* GREEN */
+    .json-green {
+      background: #0b1f14;
+      color: #3fb950;
       border: 1px solid #238636;
-      box-shadow: inset 0 0 12px rgba(63, 185, 80, 0.18);
+    }
+
+    /* YELLOW */
+    .json-yellow {
+      background: #1f1a0b;
+      color: #f2cc60;
+      border: 1px solid #d29922;
+    }
+
+    /* RED */
+    .json-red {
+      background: #1f0b0b;
+      color: #ff7b72;
+      border: 1px solid #da3633;
     }
 
     .credit {
-      margin-top: 30px;
+      margin-top: 32px;
       padding-top: 16px;
       border-top: 1px solid #30363d;
       font-size: 14px;
@@ -124,7 +143,7 @@
     }
 
     .copyright {
-      margin-top: 20px;
+      margin-top: 22px;
       text-align: center;
       font-size: 13px;
       color: #6e7681;
@@ -135,7 +154,6 @@
 
   <div class="box">
 
-    <!-- TOP HEADER -->
     <div class="top-header">OBITO API'S</div>
 
     <h1>🔍 Fragment Username Checker API</h1>
@@ -151,8 +169,10 @@
     <h3>✅ Example</h3>
     <code>https://api-tobi-frag.vercel.app/check?username=tobi</code>
 
-    <h3>📦 JSON Response Example</h3>
-    <pre class="json-box">{
+    <h3>📦 JSON Response Examples</h3>
+
+    <!-- GREEN -->
+    <pre class="json-box json-green">{
   "username": "@tobi",
   "price": "5,050",
   "status": "Available",
@@ -162,30 +182,46 @@
   "channel": "@obitoapi / @obitostuffs"
 }</pre>
 
+    <!-- YELLOW -->
+    <pre class="json-box json-yellow">{
+  "username": "@aotpy",
+  "price": "Unknown",
+  "status": "Taken",
+  "Can Claim": false,
+  "message": "",
+  "developer": "Paras Chourasiya",
+  "channel": "@obitoapi / @obitostuffs"
+}</pre>
+
+    <!-- RED -->
+    <pre class="json-box json-red">{
+  "username": "@kskcjkdk",
+  "price": "Unknown",
+  "status": "Unavailable",
+  "Can Claim": true,
+  "message": "✅ This username might be free or not listed on Fragment",
+  "developer": "Paras Chourasiya",
+  "channel": "@obitoapi / @obitostuffs"
+}</pre>
+
     <div class="credit">
-      <p>
-        👨‍💻 Developer :
-        <span class="tg" onclick="window.open('https://t.me/Aotpy','_blank')">
-          @Aotpy
-        </span>
+      <p>👨‍💻 Developer :
+        <span class="tg" onclick="window.open('https://t.me/Aotpy','_blank')">@Aotpy</span>
       </p>
 
-      <p>
-        🌐 Portfolio :
+      <p>🌐 Portfolio :
         <span class="tg" onclick="window.open('https://aotpy.vercel.app','_blank')">
-          Aotpy.vercel.app
+          Portfolio
         </span>
       </p>
 
-      <p>
-        📢 Channel :
+      <p>📢 Channel :
         <span class="tg" onclick="window.open('https://t.me/obitostuffs','_blank')">
           @obitostuffs
         </span>
       </p>
 
-      <p>
-        📢 API Channel :
+      <p>📢 API Channel :
         <span class="tg" onclick="window.open('https://t.me/obitoapi','_blank')">
           @obitoapi
         </span>
