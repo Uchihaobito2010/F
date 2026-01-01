@@ -1,5 +1,4 @@
 from fastapi import FastAPI, Query
-from fastapi.responses import JSONResponse
 import requests
 import re
 
@@ -12,9 +11,8 @@ HEADERS = {
     "Referer": "https://fragment.com/"
 }
 
-API_OWNER = "Paras Chourasiya"
+OWNER = "Paras Chourasiya"
 CONTACT = "https://t.me/Aotpy"
-PORTFOLIO = "https://aotpy.vercel.app/"
 CHANNEL = "@obitoapi / @obitostuffs"
 
 # ================= TELEGRAM CHECK =================
@@ -37,7 +35,7 @@ def fragment_lookup(username: str):
 
         html = r.text.lower()
 
-        # ---- SOLD ----
+        # ---------- SOLD ----------
         sold_signals = [
             "this username was sold",
             "sold for",
@@ -47,17 +45,25 @@ def fragment_lookup(username: str):
             return {
                 "on_fragment": True,
                 "status": "Sold",
-                "price_ton": None,
+                "price_ton": "Unknown",
                 "fragment_url": url
             }
 
-        # ---- PRICE (optional) ----
+        # ---------- PRICE (BEST EFFORT) ----------
         price = None
-        m = re.search(r'([\d,]{3,})\s*ton', html)
-        if m:
-            price = m.group(1).replace(",", "")
+        price_patterns = [
+            r'([\d,]{2,})\s*ton',
+            r'price[^0-9]{0,10}([\d,]{2,})',
+            r'([\d,]{2,})\s*tons'
+        ]
 
-        # ---- LISTED ----
+        for pattern in price_patterns:
+            m = re.search(pattern, html)
+            if m:
+                price = m.group(1).replace(",", "")
+                break
+
+        # ---------- LISTED ----------
         fragment_signals = [
             "buy username",
             "place a bid",
@@ -67,7 +73,7 @@ def fragment_lookup(username: str):
             return {
                 "on_fragment": True,
                 "status": "Available",
-                "price_ton": price,
+                "price_ton": price or "Unknown",
                 "fragment_url": url
             }
 
@@ -83,9 +89,8 @@ async def home():
     return {
         "api": "Telegram Username Claim Check API",
         "usage": "/check?user=username",
-        "owner": API_OWNER,
+        "owner": OWNER,
         "contact": CONTACT,
-        "portfolio": PORTFOLIO,
         "channel": CHANNEL,
         "status": "online"
     }
@@ -94,9 +99,9 @@ async def home():
 # ================= MAIN ENDPOINT =================
 @app.get("/check")
 async def check_username(user: str = Query(..., min_length=1)):
-    username = user.replace("@", "").lower().strip()
+    username = user.replace("@", "").strip().lower()
 
-    # 1️⃣ Telegram taken → cannot claim
+    # 1️⃣ Telegram taken
     if is_telegram_taken(username):
         return {
             "username": f"@{username}",
@@ -104,8 +109,7 @@ async def check_username(user: str = Query(..., min_length=1)):
             "status": "Taken (Telegram)",
             "price_ton": "Unknown",
             "can_claim": False,
-            "message": "",
-            "owner": API_OWNER
+            "owner": OWNER
         }
 
     # 2️⃣ Fragment check
@@ -116,11 +120,11 @@ async def check_username(user: str = Query(..., min_length=1)):
             "username": f"@{username}",
             "on_fragment": True,
             "status": fragment.get("status"),
-            "price_ton": fragment.get("price_ton") or "Unknown",
+            "price_ton": fragment.get("price_ton"),
             "can_claim": False,
             "message": "Buy from Fragment" if fragment.get("status") == "Available" else "",
             "fragment_url": fragment.get("fragment_url"),
-            "owner": API_OWNER
+            "owner": OWNER
         }
 
     # 3️⃣ Claimable
@@ -131,5 +135,5 @@ async def check_username(user: str = Query(..., min_length=1)):
         "price_ton": "Unknown",
         "can_claim": True,
         "message": "Can be claimed directly",
-        "owner": API_OWNER
+        "owner": OWNER
     }
