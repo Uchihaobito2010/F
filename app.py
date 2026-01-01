@@ -84,7 +84,7 @@ def check_fgusername(username: str, retries=3):
     }
 
 # ================= ENDPOINT =================
-@app.get("/username")
+@app.get("/check")
 async def check_username(username: str = Query(..., min_length=1)):
     username = username.strip().lower()
     if not username:
@@ -95,3 +95,4 @@ async def check_username(username: str = Query(..., min_length=1)):
         raise HTTPException(status_code=500, detail=result["error"])
 
     return result
+
