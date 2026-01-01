@@ -89,3 +89,4 @@ async def check_username(username: str = Query(..., min_length=1)):
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
     return result
+
