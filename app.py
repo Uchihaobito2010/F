@@ -4,47 +4,34 @@ import requests
 from bs4 import BeautifulSoup
 from user_agent import generate_user_agent
 from fastapi import FastAPI, HTTPException, Query
+from pydantic import BaseModel
 
-app = FastAPI(title="Fragment Username Checker API")
+app = FastAPI()
+
+# ================= SESSION =================
+session = requests.Session()
+session.headers.update({"User-Agent": generate_user_agent()})
 
 # ================= CREDITS =================
 DEVELOPER = "Paras Chourasiya"
-CONTACT = "https://t.me/Aotpy"
-PORTFOLIO = "https://aotpy.vercel.app"
 CHANNEL = "@obitoapi / @obitostuffs"
 
-# ================= SESSION =================
-def get_session():
-    s = requests.Session()
-    s.headers.update({"User-Agent": generate_user_agent()})
-    return s
-
-# ================= ROOT =================
-@app.get("/")
-async def root():
-    return {
-        "api": "Fragment Username Checker",
-        "endpoint": "/check?user=username",
-        "developer": DEVELOPER,
-        "contact": CONTACT,
-        "portfolio": PORTFOLIO,
-        "channel": CHANNEL
-    }
+# ================= MODEL =================
+class UsernameRequest(BaseModel):
+    username: str
 
 # ================= FRAGMENT API =================
 def frag_api():
     try:
-        session = get_session()
         r = session.get("https://fragment.com", timeout=15)
         soup = BeautifulSoup(r.text, "html.parser")
-
         for script in soup.find_all("script"):
             if script.string and "apiUrl" in script.string:
                 match = re.search(r"hash=([a-fA-F0-9]+)", script.string)
                 if match:
                     return f"https://fragment.com/api?hash={match.group(1)}"
         return None
-    except:
+    except Exception:
         return None
 
 def check_fgusername(username: str, retries=3):
@@ -59,7 +46,6 @@ def check_fgusername(username: str, retries=3):
     }
 
     try:
-        session = get_session()
         response = session.post(api_url, data=data, timeout=20).json()
     except Exception:
         if retries > 0:
@@ -97,12 +83,14 @@ def check_fgusername(username: str, retries=3):
         "channel": CHANNEL
     }
 
-# ================= MAIN ENDPOINT =================
-@app.get("/check")
-async def check(user: str = Query(..., min_length=1)):
-    user = user.replace("@", "").strip().lower()
+# ================= ENDPOINT =================
+@app.get("/username")
+async def check_username(username: str = Query(..., min_length=1)):
+    username = username.strip().lower()
+    if not username:
+        raise HTTPException(status_code=400, detail="username is required")
 
-    result = check_fgusername(user)
+    result = check_fgusername(username)
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
 
