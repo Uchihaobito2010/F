@@ -3,36 +3,75 @@
 <head>
   <meta charset="UTF-8">
   <title>Fragment Username Checker API</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
+      margin: 0;
+      height: 100vh;
       background: #0d1117;
       color: #e6edf3;
       font-family: Arial, sans-serif;
-      padding: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    h1 {
-      color: #58a6ff;
-    }
+
     .box {
       background: #161b22;
-      padding: 20px;
-      border-radius: 8px;
-      max-width: 700px;
+      padding: 30px 35px;
+      border-radius: 12px;
+      max-width: 800px;
+      width: 95%;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
     }
-    code {
-      background: #0d1117;
-      padding: 4px 8px;
-      border-radius: 4px;
+
+    h1 {
+      color: #58a6ff;
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
+
+    p {
+      color: #c9d1d9;
+      line-height: 1.6;
+    }
+
+    h3 {
+      margin-top: 25px;
       color: #79c0ff;
     }
-    a {
-      color: #58a6ff;
-      text-decoration: none;
+
+    code {
+      background: #0d1117;
+      padding: 6px 10px;
+      border-radius: 6px;
+      color: #79c0ff;
+      display: inline-block;
+      margin-top: 5px;
+      font-size: 14px;
     }
+
     .credit {
-      margin-top: 20px;
+      margin-top: 30px;
+      padding-top: 15px;
+      border-top: 1px solid #30363d;
       font-size: 14px;
       color: #8b949e;
+    }
+
+    .tg {
+      cursor: pointer;
+      color: #58a6ff;
+      text-decoration: underline;
+    }
+
+    .tg:hover {
+      color: #79c0ff;
     }
   </style>
 </head>
@@ -41,27 +80,42 @@
   <div class="box">
     <h1>🔍 Fragment Username Checker API</h1>
 
-    <p>Check Telegram usernames availability & Fragment status.</p>
+    <p>
+      A fast and simple API to check Telegram usernames and their status on Fragment.
+    </p>
 
     <h3>📌 Endpoint</h3>
-    <p>
-      <code>/username?username=telegram_username</code>
-    </p>
+    <code>/check?user=telegram_username</code>
 
     <h3>✅ Example</h3>
-    <p>
-      <code>
-        https://YOUR-PROJECT.vercel.app/username?username=tobi
-      </code>
-    </p>
+    <code>https://tobi-api-frag-checker.vercel.app/check?user=tobi</code>
 
     <h3>📦 Response</h3>
-    <p>Returns username status, price, availability & Fragment info in JSON.</p>
+    <p>
+      Returns JSON containing username, price, status, and availability details.
+    </p>
 
     <div class="credit">
-      <p>👨‍💻 Developer: <b>Paras Chourasiya</b></p>
-      <p>📢 Channel: <a href="https://t.me/obitostuffs" target="_blank">@obitostuffs</a></p>
-      <p>📢 API Channel: <a href="https://t.me/obitoapi" target="_blank">@obitoapi</a></p>
+      <p>
+        👨‍💻 Developer :
+        <span class="tg" onclick="window.open('https://t.me/Aotpy', '_blank')">
+          User = @Aotpy
+        </span>
+      </p>
+
+      <p>
+        📢 Channel :
+        <span class="tg" onclick="window.open('https://t.me/obitostuffs', '_blank')">
+          User = @obitostuffs
+        </span>
+      </p>
+
+      <p>
+        📢 API Channel :
+        <span class="tg" onclick="window.open('https://t.me/obitoapi', '_blank')">
+          User = @obitoapi
+        </span>
+      </p>
     </div>
   </div>
 
