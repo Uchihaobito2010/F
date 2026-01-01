@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fragment Username Checker API</title>
+  <style>
+    body {
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: Arial, sans-serif;
+      padding: 40px;
+    }
+    h1 {
+      color: #58a6ff;
+    }
+    .box {
+      background: #161b22;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 700px;
+    }
+    code {
+      background: #0d1117;
+      padding: 4px 8px;
+      border-radius: 4px;
+      color: #79c0ff;
+    }
+    a {
+      color: #58a6ff;
+      text-decoration: none;
+    }
+    .credit {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #8b949e;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="box">
+    <h1>🔍 Fragment Username Checker API</h1>
+
+    <p>Check Telegram usernames availability & Fragment status.</p>
+
+    <h3>📌 Endpoint</h3>
+    <p>
+      <code>/username?username=telegram_username</code>
+    </p>
+
+    <h3>✅ Example</h3>
+    <p>
+      <code>
+        https://YOUR-PROJECT.vercel.app/username?username=tobi
+      </code>
+    </p>
+
+    <h3>📦 Response</h3>
+    <p>Returns username status, price, availability & Fragment info in JSON.</p>
+
+    <div class="credit">
+      <p>👨‍💻 Developer: <b>Paras Chourasiya</b></p>
+      <p>📢 Channel: <a href="https://t.me/obitostuffs" target="_blank">@obitostuffs</a></p>
+      <p>📢 API Channel: <a href="https://t.me/obitoapi" target="_blank">@obitoapi</a></p>
+    </div>
+  </div>
+
+</body>
+</html>
