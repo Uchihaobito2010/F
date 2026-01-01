@@ -17,11 +17,10 @@ session.headers.update({
 DEVELOPER = "Paras Chourasiya"
 CHANNEL = "@obitoapi / @obitostuffs"
 
-# ================= TELEGRAM CHECK (ULTRA STRICT) =================
-def telegram_taken(username: str) -> bool:
+# ================= TELEGRAM CHECK (ULTRA STRICT) =================def telegram_taken(username: str) -> bool:
     """
-    True ONLY if Telegram profile/channel REALLY exists.
-    Uses og:title meta tag as final proof.
+    True ONLY if a real Telegram profile/channel exists.
+    Uses real action buttons as proof.
     """
     try:
         r = session.get(
@@ -36,77 +35,24 @@ def telegram_taken(username: str) -> bool:
         html = r.text.lower()
         u = username.lower()
 
-        # must contain username reference
+        # must reference the exact username
         if f"@{u}" not in html and f"t.me/{u}" not in html:
             return False
 
-        # strong proof: og:title exists
-        if 'property="og:title"' in html:
+        # REAL proof: Telegram action buttons
+        real_buttons = [
+            'send message',
+            'join channel'
+        ]
+
+        if any(btn in html for btn in real_buttons):
             return True
 
+        # no buttons = generic / free
         return False
 
     except:
         return False
-
-
-# ================= FRAGMENT API CHECK =================
-def fragment_api_lookup(username: str, retries=2):
-    """
-    Uses Fragment INTERNAL API.
-    Returns dict only if username is LISTED or SOLD.
-    """
-    try:
-        r = session.get("https://fragment.com", timeout=15)
-        soup = BeautifulSoup(r.text, "html.parser")
-
-        api_url = None
-        for s in soup.find_all("script"):
-            if s.string and "apiUrl" in s.string:
-                m = re.search(r"hash=([a-fA-F0-9]+)", s.string)
-                if m:
-                    api_url = f"https://fragment.com/api?hash={m.group(1)}"
-                    break
-
-        if not api_url:
-            return None
-
-        payload = {
-            "type": "usernames",
-            "query": username,
-            "method": "searchAuctions"
-        }
-
-        res = session.post(api_url, data=payload, timeout=20).json()
-        html = res.get("html")
-        if not html:
-            return None
-
-        soup2 = BeautifulSoup(html, "html.parser")
-        values = soup2.find_all("div", class_="tm-value")
-
-        if len(values) < 3:
-            return None
-
-        status = values[2].get_text(strip=True)
-        price = values[1].get_text(strip=True)
-
-        # ONLY valid Fragment states
-        if status not in ["Available", "Sold"]:
-            return None
-
-        return {
-            "status": status,
-            "price_ton": price
-        }
-
-    except:
-        if retries > 0:
-            time.sleep(1)
-            return fragment_api_lookup(username, retries - 1)
-        return None
-
-
 # ================= MAIN ENDPOINT =================
 @app.get("/check")
 async def check(user: str = Query(..., min_length=1)):
@@ -151,3 +97,4 @@ async def check(user: str = Query(..., min_length=1)):
         "developer": DEVELOPER,
         "channel": CHANNEL
                     }
+
