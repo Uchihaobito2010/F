@@ -1,93 +1,135 @@
-import re
-import time
+from fastapi import FastAPI, Query
+from fastapi.responses import JSONResponse
 import requests
-from bs4 import BeautifulSoup
-from user_agent import generate_user_agent
-from fastapi import FastAPI, HTTPException, Query
+import re
 
-app = FastAPI()
+app = FastAPI(title="Telegram Fragment Claim Check API")
 
-# ================= SESSION =================
-session = requests.Session()
-session.headers.update({"User-Agent": generate_user_agent()})
+# ================= CONFIG =================
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://fragment.com/"
+}
 
-# ================= CREDITS =================
-DEVELOPER = "Paras Chourasiya"
+API_OWNER = "Paras Chourasiya"
+CONTACT = "https://t.me/Aotpy"
+PORTFOLIO = "https://aotpy.vercel.app/"
 CHANNEL = "@obitoapi / @obitostuffs"
 
-# ================= FRAGMENT API =================
-def frag_api():
+# ================= TELEGRAM CHECK =================
+def is_telegram_taken(username: str) -> bool:
     try:
-        r = session.get("https://fragment.com", timeout=15)
-        soup = BeautifulSoup(r.text, "html.parser")
+        r = requests.get(f"https://t.me/{username}", headers=HEADERS, timeout=10)
+        return r.status_code == 200 and "tgme_page_title" in r.text
+    except:
+        return False
 
-        for script in soup.find_all("script"):
-            if script.string and "apiUrl" in script.string:
-                match = re.search(r"hash=([a-fA-F0-9]+)", script.string)
-                if match:
-                    return f"https://fragment.com/api?hash={match.group(1)}"
-        return None
-    except Exception:
-        return None
 
-def check_fgusername(username: str, retries=3):
-    api_url = frag_api()
-    if not api_url:
-        return {"error": f"Could not get API URL for @{username}"}
-
-    data = {
-        "type": "usernames",
-        "query": username,
-        "method": "searchAuctions"
-    }
+# ================= FRAGMENT CHECK =================
+def fragment_lookup(username: str):
+    url = f"https://fragment.com/username/{username}"
 
     try:
-        response = session.post(api_url, data=data, timeout=20).json()
-    except Exception:
-        if retries > 0:
-            time.sleep(2)
-            return check_fgusername(username, retries - 1)
-        return {"error": "API request failed"}
+        r = requests.get(url, headers=HEADERS, timeout=15)
+        if r.status_code != 200:
+            return {"on_fragment": False}
 
-    html_data = response.get("html")
-    if not html_data and retries > 0:
-        time.sleep(2)
-        return check_fgusername(username, retries - 1)
-    elif not html_data:
-        return {"error": "No HTML returned from Fragment API"}
+        html = r.text.lower()
 
-    soup = BeautifulSoup(html_data, "html.parser")
-    elements = soup.find_all("div", class_="tm-value")
+        # ---- SOLD ----
+        sold_signals = [
+            "this username was sold",
+            "sold for",
+            "final price"
+        ]
+        if any(sig in html for sig in sold_signals):
+            return {
+                "on_fragment": True,
+                "status": "Sold",
+                "price_ton": None,
+                "fragment_url": url
+            }
 
-    if len(elements) < 3:
-        return {"error": "Not enough info in response"}
+        # ---- PRICE (optional) ----
+        price = None
+        m = re.search(r'([\d,]{3,})\s*ton', html)
+        if m:
+            price = m.group(1).replace(",", "")
 
-    tag = elements[0].get_text(strip=True)
-    price = elements[1].get_text(strip=True)
-    status = elements[2].get_text(strip=True)
+        # ---- LISTED ----
+        fragment_signals = [
+            "buy username",
+            "place a bid",
+            "fragment marketplace"
+        ]
+        if any(sig in html for sig in fragment_signals):
+            return {
+                "on_fragment": True,
+                "status": "Available",
+                "price_ton": price,
+                "fragment_url": url
+            }
 
-    available = status.lower() == "unavailable"
-    message = "✅ This username might be free or not listed on Fragment" if available else ""
+        return {"on_fragment": False}
 
+    except:
+        return {"on_fragment": False}
+
+
+# ================= ROOT =================
+@app.get("/")
+async def home():
     return {
-        "username": tag,
-        "price": price,
-        "status": status,
-        "available": available,
-        "message": message,
-        "developer": DEVELOPER,
-        "channel": CHANNEL
+        "api": "Telegram Username Claim Check API",
+        "usage": "/check?user=username",
+        "owner": API_OWNER,
+        "contact": CONTACT,
+        "portfolio": PORTFOLIO,
+        "channel": CHANNEL,
+        "status": "online"
     }
 
-# ================= ENDPOINT =================
+
+# ================= MAIN ENDPOINT =================
 @app.get("/check")
 async def check_username(user: str = Query(..., min_length=1)):
-    username = user.strip().lower()
-    if not username:
-        raise HTTPException(status_code=400, detail="user is required")
+    username = user.replace("@", "").lower().strip()
 
-    result = check_fgusername(username)
-    if "error" in result:
-        raise HTTPException(status_code=500, detail=result["error"])
+    # 1️⃣ Telegram taken → cannot claim
+    if is_telegram_taken(username):
+        return {
+            "username": f"@{username}",
+            "on_fragment": False,
+            "status": "Taken (Telegram)",
+            "price_ton": "Unknown",
+            "can_claim": False,
+            "message": "",
+            "owner": API_OWNER
+        }
 
-    return result
+    # 2️⃣ Fragment check
+    fragment = fragment_lookup(username)
+
+    if fragment.get("on_fragment"):
+        return {
+            "username": f"@{username}",
+            "on_fragment": True,
+            "status": fragment.get("status"),
+            "price_ton": fragment.get("price_ton") or "Unknown",
+            "can_claim": False,
+            "message": "Buy from Fragment" if fragment.get("status") == "Available" else "",
+            "fragment_url": fragment.get("fragment_url"),
+            "owner": API_OWNER
+        }
+
+    # 3️⃣ Claimable
+    return {
+        "username": f"@{username}",
+        "on_fragment": False,
+        "status": "Available",
+        "price_ton": "Unknown",
+        "can_claim": True,
+        "message": "Can be claimed directly",
+        "owner": API_OWNER
+    }
