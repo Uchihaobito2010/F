@@ -4,7 +4,6 @@ import requests
 from bs4 import BeautifulSoup
 from user_agent import generate_user_agent
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -16,15 +15,12 @@ session.headers.update({"User-Agent": generate_user_agent()})
 DEVELOPER = "Paras Chourasiya"
 CHANNEL = "@obitoapi / @obitostuffs"
 
-# ================= MODEL =================
-class UsernameRequest(BaseModel):
-    username: str
-
 # ================= FRAGMENT API =================
 def frag_api():
     try:
         r = session.get("https://fragment.com", timeout=15)
         soup = BeautifulSoup(r.text, "html.parser")
+
         for script in soup.find_all("script"):
             if script.string and "apiUrl" in script.string:
                 match = re.search(r"hash=([a-fA-F0-9]+)", script.string)
@@ -85,14 +81,13 @@ def check_fgusername(username: str, retries=3):
 
 # ================= ENDPOINT =================
 @app.get("/check")
-async def check_username(username: str = Query(..., min_length=1)):
-    username = username.strip().lower()
+async def check_username(user: str = Query(..., min_length=1)):
+    username = user.strip().lower()
     if not username:
-        raise HTTPException(status_code=400, detail="username is required")
+        raise HTTPException(status_code=400, detail="user is required")
 
     result = check_fgusername(username)
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
 
     return result
-
