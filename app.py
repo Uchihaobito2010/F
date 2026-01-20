@@ -11,7 +11,7 @@ app = FastAPI()
 session = requests.Session()
 session.headers.update({"User-Agent": generate_user_agent()})
 
-DEVELOPER = "Paras Chourasiya"
+DEVELOPER = "Paras"
 CONTACT = "t.me/Aotpy"
 PORTFOLIO = "https://aotpy.vercel.app"
 CHANNEL = "@obitoapi / @obitostuffs"
@@ -88,5 +88,6 @@ async def check_username(username: str = Query(..., min_length=1)):
         raise HTTPException(status_code=500, detail=result["error"])
     return result
     
+
 
 
