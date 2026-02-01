@@ -10,7 +10,7 @@ app = FastAPI()
 session = requests.Session()
 session.headers.update({"User-Agent": generate_user_agent()})
 
-DEVELOPER = "Paras"
+DEVELOPER = "@Aotpy"
 CHANNEL = "@obitoapi / @obitostuffs"
 
 # 🔒 FIXED USD → INR RATE (stable, no jump)
