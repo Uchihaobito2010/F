@@ -100,7 +100,7 @@ def check_fgusername(username: str, retries=3):
     status = values[2].get_text(strip=True)
 
     can_claim = status.lower() == "unavailable"
-    message = "✅ Claim This Username it's free 💕🗿🥀. if u Can't able to Claim This Username so surely it's from Frozen account Try to claim it👍" if can_claim else ""
+    message = "✅ Claim This Username it's free 💕🗿🥀. if u Can't able to Claim This Username so it's surely from Frozen account" if can_claim else ""
 
     ton, usd, inr = get_ton_usd_inr(username)
 
