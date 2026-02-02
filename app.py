@@ -12,12 +12,9 @@ session.headers.update({"User-Agent": generate_user_agent()})
 
 DEVELOPER = "@Aotpy"
 CHANNEL = "@obitoapi / @obitostuffs"
-
-# 🔒 FIXED USD → INR RATE (stable, no jump)
+
 USD_TO_INR = 83.0
-
-
-# 🔹 Get Fragment internal API
+
 def frag_api():
     try:
         r = session.get("https://fragment.com", timeout=10)
@@ -30,9 +27,7 @@ def frag_api():
         return None
     except:
         return None
-
-
-# 🔹 Get TON, USD, INR (STABLE)
+
 def get_ton_usd_inr(username: str):
     try:
         r = session.get(
@@ -56,8 +51,7 @@ def get_ton_usd_inr(username: str):
             return None, None, None
 
         ton = float(ton)
-
-        # ✅ SINGLE SOURCE RATE (Fragment tonRate)
+
         rate_match = re.search(r'"tonRate":([0-9.]+)', r.text)
         if not rate_match:
             return ton, None, None
@@ -71,9 +65,7 @@ def get_ton_usd_inr(username: str):
 
     except:
         return None, None, None
-
-
-# 🔹 Main Fragment username check
+
 def check_fgusername(username: str, retries=3):
     api_url = frag_api()
     if not api_url:
@@ -108,7 +100,7 @@ def check_fgusername(username: str, retries=3):
     status = values[2].get_text(strip=True)
 
     can_claim = status.lower() == "unavailable"
-    message = "✅ Claim This Username it's free 💕🗿🥀. if u Can't able to Claim This Username is from Frozen account Try to claim it👍" if can_claim else ""
+    message = "✅ Claim This Username it's free 💕🗿🥀. if u Can't able to Claim This Username so surely it's from Frozen account Try to claim it👍" if can_claim else ""
 
     ton, usd, inr = get_ton_usd_inr(username)
 
@@ -123,9 +115,7 @@ def check_fgusername(username: str, retries=3):
         "developer": DEVELOPER,
         "channel": CHANNEL
     }
-
-
-# 🔹 FastAPI endpoint
+
 @app.get("/check")
 async def check_username(username: str = Query(..., min_length=1)):
     username = username.strip().lower().replace("@", "")
